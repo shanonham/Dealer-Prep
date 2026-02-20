@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Baccarat Flashcards — Kai's SRS Deck</title>
+<style>
+  :root{
+    --bg:#f2f5f8; --card:#fff; --muted:#6b7280; --accent:#0a84ff; --radius:16px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  html,body{height:100%;margin:0;background:linear-gradient(180deg,var(--bg),#e9eef4);color:#0b1220}
+  .app{max-width:900px;margin:20px auto;padding:18px}
+  header{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  h1{font-size:18px;margin:0}
+  .muted{color:var(--muted);font-size:13px}
+  .top-right{display:flex;gap:8px;align-items:center}
+  .chip{background:var(--card);padding:6px 10px;border-radius:999px;font-weight:700;color:var(--muted);font-size:13px}
+  .controls-row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+  .cat-btn{background:transparent;border:1px solid transparent;padding:8px 12px;border-radius:12px;font-weight:700;color:var(--muted);cursor:pointer}
+  .cat-btn.active{background:linear-gradient(180deg,rgba(10,132,255,0.08),rgba(10,132,255,0.03));border:1px solid rgba(10,132,255,0.12);color:var(--accent)}
+  .stage{display:flex;justify-content:center;align-items:center;min-height:320px}
+  .flashcard{width:360px;max-width:92vw;height:220px;border-radius:var(--radius);perspective:1200px}
+  .card-inner{width:100%;height:100%;border-radius:inherit;position:relative;transform-style:preserve-3d;transition:transform 480ms cubic-bezier(.2,.9,.2,1);box-shadow:0 12px 36px rgba(12,16,20,0.08)}
+  .flashcard.flipped .card-inner{transform:rotateY(180deg)}
+  .card-face{position:absolute;inset:0;border-radius:inherit;backface-visibility:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:18px;text-align:center}
+  .card-front{background:linear-gradient(180deg,#fff,#fbfdff);border:1px solid rgba(10,132,255,0.04)}
+  .card-back{transform:rotateY(180deg);background:linear-gradient(180deg,#0a84ff,#0066d6);color:white;font-weight:700}
+  .hint{font-size:13px;color:var(--muted);margin-top:10px}
+  .btn{background:var(--card);border:none;border-radius:12px;padding:9px 12px;font-weight:800;box-shadow:0 6px 18px rgba(12,16,20,0.06);cursor:pointer}
+  .btn.ios{background:linear-gradient(#fff,#f7fbff);border:1px solid rgba(10,132,255,0.06);color:var(--accent)}
+  .btn.positive{background:linear-gradient(180deg,#dff6e9,#ddf4e2);color:#057a3f}
+  .btn.negative{background:linear-gradient(180deg,#ffecec,#ffdddd);color:#a11}
+  .small{font-size:13px;padding:6px 8px}
+  .footer{margin-top:18px;color:var(--muted);font-size:13px;text-align:center}
+  .meta{display:flex;gap:10px;align-items:center}
+  .toggle{display:inline-flex;align-items:center;gap:8px}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  @media (max-width:420px){.flashcard{height:240px}.card-face{font-size:16px}}
+</style>
+</head>
+<body>
+<div class="app" role="application" aria-label="Baccarat study flashcards">
+  <header>
+    <div>
+      <h1>Baccarat Flashcards — SRS Mode</h1>
+      <div class="muted">Tap card to flip · Mark Correct/Incorrect to train the SRS</div>
+    </div>
+    <div class="top-right">
+      <div class="chip" id="dueCount">Due: 0</div>
+      <div class="chip" id="percent">0%</div>
+    </div>
+  </header>
+
+  <div class="controls-row" role="toolbar" aria-label="controls">
+    <div class="row" style="align-items:center">
+      <button class="cat-btn active" data-cat="all">All</button>
+      <button class="cat-btn" data-cat="side">Side bets</button>
+      <button class="cat-btn" data-cat="player">Player rules</button>
+      <button class="cat-btn" data-cat="banker">Banker rules</button>
+      <button class="cat-btn" data-cat="due">Due (SRS)</button>
+    </div>
+
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+      <label class="toggle muted"><input type="checkbox" id="srsToggle" checked> Use SRS</label>
+      <button class="btn small" id="shuffleBtn">Shuffle</button>
+      <button class="btn small" id="exportCsv">Export CSV</button>
+      <button class="btn small" id="resetAll">Reset All</button>
+    </div>
+  </div>
+
+  <main>
+    <section class="stage">
+      <div class="flashcard" id="flashcard" tabindex="0" role="button" aria-pressed="false">
+        <div class="card-inner" id="cardInner">
+          <div class="card-face card-front" id="cardFront">
+            <div id="frontText" style="font-size:18px;font-weight:800"></div>
+            <div class="hint" id="frontHint"></div>
+            <div class="muted" id="srsHint" style="margin-top:8px;font-size:12px"></div>
+          </div>
+          <div class="card-face card-back" id="cardBack">
+            <div id="backText" style="font-size:18px"></div>
+            <div style="font-size:13px;margin-top:8px;opacity:0.95" id="backExtra"></div>
+            <div style="font-size:12px;margin-top:12px;opacity:0.9" id="backNote"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="controls-row" style="justify-content:center;margin-top:10px">
+      <button class="btn" id="prevBtn">⟵ Prev</button>
+      <button class="btn ios" id="nextBtn">Next ➜</button>
+      <button class="btn positive" id="markCorrect">Correct ✓</button>
+      <button class="btn negative" id="markIncorrect">Incorrect ✕</button>
+      <button class="btn" id="againBtn">Again ↺</button>
+    </div>
+
+    <div style="display:flex;justify-content:center;margin-top:8px;gap:10px">
+      <div class="muted">Correct: <strong id="score-correct">0</strong></div>
+      <div class="muted">Incorrect: <strong id="score-incorrect">0</strong></div>
+    </div>
+  </main>
+
+  <div class="footer">SM-2 inspired scheduling; small, practical, no-nonsense. Want deeper SRS tuning? Say the word.</div>
+</div>
+
+<script>
+/* Single-file Baccarat flashcards with:
+   - Categories (side, player, banker, due)
+   - Tap to flip, next/prev
+   - SRS (SM-2 inspired) scheduling saved in localStorage
+   - Export to CSV for progress + SRS data
+   - Expanded banker detail cards
+*/
+
+const STORAGE_STATS = 'baccarat_stats_v2';
+const STORAGE_SRS = 'baccarat_srs_v2';
+const STORAGE_DECK = 'baccarat_deck_v2';
+
+const deck = [
+  // Side bets
+  {id:'s1', cat:'side', q:'Dragon Bonus', a:'40:1', extra:'Pays 40:1 on qualifying banker 3-card 7 outcomes (house rules vary).'},
+  {id:'s2', cat:'side', q:'Panda 8', a:'25:1', extra:'Pays 25:1 when Player wins with a 3-card total of 8.'},
+  {id:'s3', cat:'side', q:'Tie side bet', a:'8:1', extra:'Pays 8:1 for Player/Banker tie (varies by house).'},
+
+  // Player rules
+  {id:'p1', cat:'player', q:'Player 0–5', a:'Draw', extra:'Player draws a 3rd card on totals 0–5.'},
+  {id:'p2', cat:'player', q:'Player 6–7', a:'Stand', extra:'Player stands (no 3rd card) on totals 6–7.'},
+  {id:'p3', cat:'player', q:'Player 8–9', a:'Natural (no draw)', extra:'8 or 9 are naturals — no further cards.'},
+
+  // Banker rules: concise + example driven
+  {id:'b0', cat:'banker', q:'Banker 0–2', a:'Draw', extra:'Banker always draws on 0–2.'},
+  {id:'b1', cat:'banker', q:"Banker 3", a:"Draw except if Player's 3rd card = 8", extra:"If Banker has 3, Banker draws unless Player's 3rd card is 8. Example: Banker 3 vs Player 7 + draw 4 → Banker draws."},
+  {id:'b2', cat:'banker', q:"Banker 4", a:"Draw if Player's 3rd card is 2–7", extra:"Banker draws on 4 only when Player's 3rd card is 2–7. Example: If Player drew a 5, Banker 4 → draw."},
+  {id:'b3', cat:'banker', q:"Banker 5", a:"Draw if Player's 3rd card is 4–7", extra:"Banker draws on 5 only when Player's 3rd card is 4–7. Example: Player draws 6 → Banker 5 draws."},
+  {id:'b4', cat:'banker', q:"Banker 6", a:"Draw if Player's 3rd card is 6–7", extra:"Banker draws on 6 only when Player's 3rd card is 6 or 7."},
+  {id:'b5', cat:'banker', q:'Banker 7', a:'Stand', extra:'Banker stands on 7 — no draw.'},
+
+  // Extra banker-card scenarios (practical examples)
+  {id:'b6', cat:'banker', q:'Scenario: Player natural 8', a:'No more draws', extra:'If either side has natural 8/9, no further cards are drawn. Example: Player 8, Banker 4 → no draws.'},
+  {id:'b7', cat:'banker', q:'Scenario: Banker 3 vs Player drew 8', a:'Banker stands', extra:"Banker 3 normally draws — but if Player's 3rd card is 8, Banker stands."},
+  {id:'b8', cat:'banker', q:'Scenario: Banker 4 vs Player drew 2', a:'Banker draws', extra:'Banker 4 with Player\'s 3rd card 2 → Banker draws.'}
+];
+
+let stats = loadJSON(STORAGE_STATS, {correct:0, incorrect:0});
+let srs = loadJSON(STORAGE_SRS, {}); // map id -> {ease,interval,reps,next}
+let filtered = [...deck];
+let index = 0;
+let flipped = false;
+let useSrs = true;
+let currentCategory = 'all';
+
+// DOM
+const D = {
+  flash: document.getElementById('flashcard'),
+  inner: document.getElementById('cardInner'),
+  frontText: document.getElementById('frontText'),
+  frontHint: document.getElementById('frontHint'),
+  srsHint: document.getElementById('srsHint'),
+  backText: document.getElementById('backText'),
+  backExtra: document.getElementById('backExtra'),
+  backNote: document.getElementById('backNote'),
+  nextBtn: document.getElementById('nextBtn'),
+  prevBtn: document.getElementById('prevBtn'),
+  markCorrect: document.getElementById('markCorrect'),
+  markIncorrect: document.getElementById('markIncorrect'),
+  againBtn: document.getElementById('againBtn'),
+  shuffleBtn: document.getElementById('shuffleBtn'),
+  exportCsv: document.getElementById('exportCsv'),
+  resetAll: document.getElementById('resetAll'),
+  scoreCorrect: document.getElementById('score-correct'),
+  scoreIncorrect: document.getElementById('score-incorrect'),
+  percent: document.getElementById('percent'),
+  dueCount: document.getElementById('dueCount'),
+  srsToggle: document.getElementById('srsToggle'),
+  catBtns: document.querySelectorAll('.cat-btn')
+};
+
+// helpers
+function loadJSON(k, fallback){ try{const s = localStorage.getItem(k); return s?JSON.parse(s):fallback}catch(e){return fallback}}
+function saveJSON(k,v){ localStorage.setItem(k, JSON.stringify(v)); }
+function todayTs(){ return Date.now(); }
+function daysFromNow(days){ return Date.now() + days*24*60*60*1000; }
+function capitalize(s){return s.charAt(0).toUpperCase()+s.slice(1)}
+
+// SRS (SM-2 inspired, simplified)
+// Each card entry: {ease: 2.5 default, interval: 0 (days), reps:0, next: timestamp}
+function ensureSrs(id){
+  if(!srs[id]) srs[id] = {ease:2.5, interval:0, reps:0, next:0};
+}
+function markAnswer(id, quality){
+  // quality: 0-5 (we map Correct=4, Again=2, Incorrect=1)
+  ensureSrs(id);
+  const c = srs[id];
+  if(quality < 3){
+    // reset
+    c.reps = 0;
+    c.interval = 0;
+    c.next = todayTs() + 1000*60*30; // 30 minutes for quick retry
+    c.ease = Math.max(1.3, c.ease - 0.2);
+  } else {
+    c.reps += 1;
+    if(c.reps === 1) c.interval = 1;
+    else if(c.reps === 2) c.interval = 6;
+    else c.interval = Math.round(c.interval * c.ease);
+    // adjust ease
+    c.ease = Math.max(1.3, c.ease + (0.1 * (quality - 3))); // small adjustments
+    // schedule next
+    c.next = daysFromNow(c.interval);
+  }
+  saveJSON(STORAGE_SRS, srs);
+  updateDueCount();
+}
+
+// UI: render a card
+function render(){
+  if(filtered.length === 0){
+    D.frontText.textContent = 'No cards';
+    D.frontHint.textContent = '';
+    D.backText.textContent = '';
+    D.backExtra.textContent = '';
+    D.srsHint.textContent = '';
+    return;
+  }
+  const card = filtered[index % filtered.length];
+  D.frontText.textContent = card.q;
+  D.frontHint.textContent = `Category: ${capitalize(card.cat)}`;
+  D.backText.textContent = card.a;
+  D.backExtra.textContent = card.extra || '';
+  // SRS hint
+  ensureSrs(card.id);
+  const meta = srs[card.id];
+  const nextDate = meta.next ? new Date(meta.next) : null;
+  const nextLabel = nextDate ? `Next: ${nextDate.toLocaleString()}` : 'Not scheduled';
+  D.srsHint.textContent = `E:${meta.ease.toFixed(2)} • I:${meta.interval}d • R:${meta.reps} • ${nextLabel}`;
+  // small note
+  D.backNote.textContent = (meta.next && meta.next > todayTs()) ? 'Not due yet (SRS). Use "Again" to study now.' : '';
+  // reset flip
+  flipTo(false);
+  updateUI();
+}
+
+// flip
+function flipTo(state){
+  flipped = !!state;
+  D.inner.style.transform = flipped ? 'rotateY(180deg)' : 'none';
+  D.flash.classList.toggle('flipped', flipped);
+  D.flash.setAttribute('aria-pressed', String(flipped));
+}
+
+// navigation
+function nextCard(){
+  if(filtered.length === 0) return;
+  index = (index + 1) % filtered.length;
+  render();
+}
+function prevCard(){
+  if(filtered.length === 0) return;
+  index = (index - 1 + filtered.length) % filtered.length;
+  render();
+}
+
+// scoring and marking
+function markCorrect(){
+  stats.correct++;
+  saveJSON(STORAGE_STATS, stats);
+  // SRS quality mapping: 4 = correct (good)
+  const card = filtered[index % filtered.length];
+  if(useSrs) markAnswer(card.id, 4);
+  updateUI();
+  nextCard();
+}
+function markIncorrect(){
+  stats.incorrect++;
+  saveJSON(STORAGE_STATS, stats);
+  const card = filtered[index % filtered.length];
+  if(useSrs) markAnswer(card.id, 1);
+  updateUI();
+  nextCard();
+}
+function markAgain(){
+  // "Again" = quick retry with low quality (2)
+  stats.incorrect++;
+  saveJSON(STORAGE_STATS, stats);
+  const card = filtered[index % filtered.length];
+  if(useSrs) markAnswer(card.id, 2);
+  updateUI();
+  // keep same card but flip back for retry; do not auto-advance
+  flipTo(false);
+}
+
+// category / filtering
+function applyCategory(cat){
+  currentCategory = cat;
+  document.querySelectorAll('.cat-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.cat-btn').forEach(b=>{ if(b.dataset.cat === cat) b.classList.add('active')});
+  if(cat === 'all') filtered = [...deck];
+  else if(cat === 'due'){
+    // due cards by SRS (and category filters not applied)
+    const dueList = deck.filter(c => {
+      ensureSrs(c.id);
+      return srs[c.id].next <= todayTs();
+    });
+    filtered = dueList.length ? dueList : [];
+  } else {
+    filtered = deck.filter(d => d.cat === cat);
+  }
+  shuffleArray(filtered);
+  index = 0;
+  render();
+}
+
+// shuffle utility
+function shuffleArray(a){
+  for(let i=a.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [a[i],a[j]] = [a[j],a[i]];
+  }
+}
+
+// UI updates
+function updateUI(){
+  D.scoreCorrect.textContent = stats.correct;
+  D.scoreIncorrect.textContent = stats.incorrect;
+  const total = stats.correct + stats.incorrect;
+  const pct = total ? Math.round((stats.correct/total)*100) : 0;
+  D.percent.textContent = pct + '%';
+  updateDueCount();
+}
+
+function updateDueCount(){
+  let count = 0;
+  const now = todayTs();
+  deck.forEach(c => { ensureSrs(c.id); if(srs[c.id].next <= now) count++; });
+  D.dueCount.textContent = 'Due: ' + count;
+}
+
+// CSV export
+function exportCsv(){
+  // Build rows: id,category,question,answer,extra, ease, interval, reps, next, statusStat
+  const rows = [];
+  rows.push(['id','category','question','answer','extra','ease','interval_days','reps','next_iso','srs_status']);
+  deck.forEach(c => {
+    ensureSrs(c.id);
+    const meta = srs[c.id];
+    const nextIso = meta.next ? new Date(meta.next).toISOString() : '';
+    const status = meta.next <= todayTs() ? 'due' : 'not-due';
+    rows.push([c.id,c.cat,c.q,c.a, (c.extra||''), meta.ease.toFixed(3), meta.interval, meta.reps, nextIso, status]);
+  });
+  // Add stats summary block
+  rows.push([]);
+  rows.push(['stats','correct', stats.correct]);
+  rows.push(['stats','incorrect', stats.incorrect]);
+  const csv = rows.map(r => r.map(cell => `"${String(cell||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'baccarat_flashcards_export.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+// Reset all (stats + srs)
+function resetAll(){
+  if(!confirm('Reset all scores and SRS data? This cannot be undone.')) return;
+  stats = {correct:0, incorrect:0};
+  srs = {};
+  saveJSON(STORAGE_STATS, stats);
+  saveJSON(STORAGE_SRS, srs);
+  updateUI();
+  render();
+}
+
+// keyboard & gestures
+D.flash.addEventListener('click', ()=> flipTo(!flipped));
+D.flash.addEventListener('keydown', (e)=>{ if(e.key===' '||e.key==='Enter'){ e.preventDefault(); flipTo(!flipped); }});
+D.nextBtn.addEventListener('click', nextCard);
+D.prevBtn.addEventListener('click', prevCard);
+D.markCorrect.addEventListener('click', markCorrect);
+D.markIncorrect.addEventListener('click', markIncorrect);
+D.againBtn.addEventListener('click', markAgain);
+D.shuffleBtn.addEventListener('click', ()=>{ shuffleArray(filtered); index=0; render(); });
+D.exportCsv.addEventListener('click', exportCsv);
+D.resetAll.addEventListener('click', resetAll);
+D.srsToggle.addEventListener('change', (e)=>{ useSrs = e.target.checked; updateUI(); });
+
+// category buttons
+D.catBtns.forEach(b=>{
+  b.addEventListener('click', ()=>applyCategory(b.dataset.cat));
+});
+
+// keyboard shortcuts
+window.addEventListener('keydown', (e)=>{
+  if(e.key === 'ArrowRight') nextCard();
+  if(e.key === 'ArrowLeft') prevCard();
+  if(e.key.toLowerCase() === 'f') flipTo(!flipped);
+  if(e.key.toLowerCase() === 'c') markCorrect();
+  if(e.key.toLowerCase() === 'x') markIncorrect();
+  if(e.key.toLowerCase() === 'a') markAgain();
+});
+
+// initial SRS ensure and init
+(function init(){
+  // ensure SRS entries for all cards
+  deck.forEach(c => ensureSrs(c.id));
+  // persist initial SRS
+  saveJSON(STORAGE_SRS, srs);
+  // load from storage if any
+  stats = loadJSON(STORAGE_STATS, stats);
+  // start with category 'all' filtered
+  applyCategory('all');
+  // if SRS is on show count
+  D.srsToggle.checked = true;
+  updateUI();
+})();
+</script>
+</body>
+</html>
